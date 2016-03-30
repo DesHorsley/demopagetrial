@@ -1,3 +1,77 @@
+/// <reference path="snap/snapsvg.d.ts" />
+/// <reference path="Shape.ts" />
+/// <reference path="toolSettings.ts" />
+var __extends = (this && this.__extends) || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+};
+var markit;
+(function (markit) {
+    var Ellipse = (function (_super) {
+        __extends(Ellipse, _super);
+        function Ellipse(theSurface, attr) {
+            _super.call(this, theSurface, attr);
+            this.flipX = false;
+            this.flipY = false;
+        }
+        Ellipse.prototype.resize = function (coords, fromOrigin) {
+            if (fromOrigin === void 0) { fromOrigin = false; }
+            if (fromOrigin) {
+                this.origin = coords;
+            }
+            else {
+                this.endpoint = coords;
+            }
+            if (this.element === undefined || this.element == null) {
+                this.element = this.surface.ellipse(this.origin.x, this.origin.y, 1, 1);
+                this.element.attr(this.attributes);
+            }
+            else {
+                var x, y, w, h;
+                if (this.endpoint.x < this.origin.x) {
+                    this.flipX = true;
+                    x = this.endpoint.x;
+                }
+                else {
+                    this.flipX = false;
+                    x = this.origin.x;
+                }
+                if (this.endpoint.y < this.origin.y) {
+                    this.flipY = true;
+                    y = this.endpoint.y;
+                }
+                else {
+                    this.flipY = false;
+                    y = this.origin.y;
+                }
+                w = Math.abs(this.endpoint.x - this.origin.x);
+                h = Math.abs(this.endpoint.y - this.origin.y);
+                this.element.attr({
+                    x: x,
+                    y: y,
+                    rx: w,
+                    ry: h
+                });
+            }
+        };
+        Ellipse.prototype.flipCoords = function () {
+            if (this.flipX) {
+                var x = this.origin.x;
+                this.origin.x = this.endpoint.x;
+                this.endpoint.x = x;
+            }
+            if (this.flipY) {
+                var y = this.origin.y;
+                this.origin.y = this.endpoint.y;
+                this.endpoint.y = y;
+            }
+        };
+        return Ellipse;
+    })(markit.Shape);
+    markit.Ellipse = Ellipse;
+})(markit || (markit = {}));
+//# sourceMappingURL=Ellipse.js.map
 /// <reference path="ToolSettingsObserver.ts" />
 /// <reference path="ToolsManager.ts" />
 var markit;
@@ -23,6 +97,7 @@ var markit;
 /// <reference path="snap/snapsvg.d.ts" />
 /// <reference path="ToolSettings.ts" />
 /// <reference path="Shape.ts" />
+/// <reference path="Rectangle.ts" />
 var markit;
 (function (markit) {
     var Paper = (function () {
@@ -38,11 +113,28 @@ var markit;
             this.elements = new Array();
         }
         Paper.prototype.onmousedown = function (e) {
+            if (this.toolSettings === undefined || this.toolSettings == null) {
+                return; // toolsettings not set
+            }
             if (e.which == 1) {
+                console.log("lmb: " + this.toolSettings.commandMode);
                 if (this.toolSettings.commandMode == markit.CommandMode.Line) {
                     this.leftMouseButtonDown = true;
-                    console.log("lmb: " + this.toolSettings.commandMode);
                     this.activeElement = new markit.Line(this.snap, null);
+                    var coords = this.toLocalCoords(e.clientX, e.clientY);
+                    this.activeElement.origin = coords;
+                    this.activeElement.resize(coords, false);
+                }
+                else if (this.toolSettings.commandMode == markit.CommandMode.Rectangle) {
+                    this.leftMouseButtonDown = true;
+                    this.activeElement = new markit.Rectangle(this.snap, { stroke: this.toolSettings.stroke, fill: this.toolSettings.fill, strokeWidth: this.toolSettings.strokeWidth });
+                    var coords = this.toLocalCoords(e.clientX, e.clientY);
+                    this.activeElement.origin = coords;
+                    this.activeElement.resize(coords, false);
+                }
+                else if (this.toolSettings.commandMode == markit.CommandMode.Ellipse) {
+                    this.leftMouseButtonDown = true;
+                    this.activeElement = new markit.Ellipse(this.snap, { stroke: this.toolSettings.stroke, fill: this.toolSettings.fill, strokeWidth: this.toolSettings.strokeWidth });
                     var coords = this.toLocalCoords(e.clientX, e.clientY);
                     this.activeElement.origin = coords;
                     this.activeElement.resize(coords, false);
@@ -51,8 +143,10 @@ var markit;
         };
         Paper.prototype.onmousemove = function (e) {
             if (this.leftMouseButtonDown) {
-                if (this.toolSettings.commandMode == markit.CommandMode.Line) {
-                    console.log("mouse move - draw line");
+                if (this.toolSettings.commandMode == markit.CommandMode.Line ||
+                    this.toolSettings.commandMode == markit.CommandMode.Rectangle ||
+                    this.toolSettings.commandMode == markit.CommandMode.Ellipse) {
+                    console.log("mouse move - draw " + this.toolSettings.commandMode);
                     if (this.activeElement) {
                         this.activeElement.resize(this.toLocalCoords(e.clientX, e.clientY), false);
                     }
@@ -63,6 +157,12 @@ var markit;
             this.leftMouseButtonDown = false;
             if (this.activeElement === undefined || this.activeElement === null) {
                 return;
+            }
+            if (this.activeElement instanceof markit.Rectangle) {
+                this.activeElement.flipCoords();
+            }
+            else if (this.activeElement instanceof markit.Ellipse) {
+                this.activeElement.flipCoords();
             }
             this.elements.push(this.activeElement);
             this.activeElement = null;
@@ -106,6 +206,79 @@ var markit;
     markit.Paper = Paper;
 })(markit || (markit = {}));
 //# sourceMappingURL=Paper.js.map
+/// <reference path="snap/snapsvg.d.ts" />
+/// <reference path="Shape.ts" />
+var __extends = (this && this.__extends) || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+};
+var markit;
+(function (markit) {
+    var Rectangle = (function (_super) {
+        __extends(Rectangle, _super);
+        function Rectangle(theSurface, attr) {
+            _super.call(this, theSurface, attr);
+            this.flipX = false;
+            this.flipY = false;
+        }
+        Rectangle.prototype.resize = function (coords, fromOrigin) {
+            if (fromOrigin === void 0) { fromOrigin = false; }
+            if (fromOrigin) {
+                this.origin = coords;
+            }
+            else {
+                this.endpoint = coords;
+            }
+            if (this.element === undefined || this.element === null) {
+                this.element = this.surface.rect(this.origin.x, this.origin.y, 1, 1);
+                this.element.attr(this.attributes);
+            }
+            else {
+                var x, y, w, h;
+                if (this.endpoint.x < this.origin.x) {
+                    this.flipX = true;
+                    x = this.endpoint.x;
+                }
+                else {
+                    this.flipX = false;
+                    x = this.origin.x;
+                }
+                if (this.endpoint.y < this.origin.y) {
+                    this.flipY = true;
+                    y = this.endpoint.y;
+                }
+                else {
+                    this.flipY = false;
+                    y = this.origin.y;
+                }
+                w = Math.abs(this.endpoint.x - this.origin.x);
+                h = Math.abs(this.endpoint.y - this.origin.y);
+                this.element.attr({
+                    x: x,
+                    y: y,
+                    width: w,
+                    height: h
+                });
+            }
+        };
+        Rectangle.prototype.flipCoords = function () {
+            if (this.flipX) {
+                var x = this.origin.x;
+                this.origin.x = this.endpoint.x;
+                this.endpoint.x = x;
+            }
+            if (this.flipY) {
+                var y = this.origin.y;
+                this.origin.y = this.endpoint.y;
+                this.endpoint.y = y;
+            }
+        };
+        return Rectangle;
+    })(markit.Shape);
+    markit.Rectangle = Rectangle;
+})(markit || (markit = {}));
+//# sourceMappingURL=Rectangle.js.map
 /// <reference path="snap/snapsvg.d.ts" />
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
@@ -181,12 +354,13 @@ var markit;
             this.height = 1;
             this.strokeWidth = 1;
             this.stroke = "#000";
+            this.fill = "none";
         }
         return ToolSettings;
     })();
     markit.ToolSettings = ToolSettings;
 })(markit || (markit = {}));
-//# sourceMappingURL=ToolSettings.js.map
+//# sourceMappingURL=toolSettings.js.map
 /// <reference path="ToolSettings.ts" />
 //# sourceMappingURL=ToolSettingsObserver.js.map
 /// <reference path="ToolSettings.ts" />

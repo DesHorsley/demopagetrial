@@ -14,9 +14,10 @@ var markit;
             this.height = 1;
             this.strokeWidth = 1;
             this.stroke = "#000";
+            this.fill = "none";
         }
         return ToolSettings;
     })();
     markit.ToolSettings = ToolSettings;
 })(markit || (markit = {}));
-//# sourceMappingURL=ToolSettings.js.map
+//# sourceMappingURL=toolSettings.js.map
